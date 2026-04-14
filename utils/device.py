@@ -11,7 +11,7 @@ def get_device() -> torch.device:
     if torch.cuda.is_available():
         device = torch.device("cuda")
         print(f"Using CUDA: {torch.cuda.get_device_name(0)}")
-        vram = torch.cuda.get_device_properties(0).total_mem / 1e9
+        vram = torch.cuda.get_device_properties(0).total_memory / 1e9
         print(f"VRAM: {vram:.1f} GB")
     elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
