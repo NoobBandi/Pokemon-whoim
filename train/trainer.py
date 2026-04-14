@@ -54,10 +54,8 @@ def train(config: Config | None = None):
     content_loss_fn = ContentLoss(model.encoder)
     style_loss_fn = StyleLoss(model.encoder)
 
-    # Mixed precision scaler (CUDA only)
-    # Disable AMP on cu118 to avoid NaN issues
-    use_amp = is_cuda and config.mixed_precision and torch.cuda.get_device_capability()[0] >= 8
-    scaler = torch.amp.GradScaler("cuda") if use_amp else None
+    # Mixed precision disabled — causes NaN with small decoder outputs
+    scaler = None
 
     os.makedirs(config.checkpoint_dir, exist_ok=True)
 
@@ -83,24 +81,13 @@ def train(config: Config | None = None):
 
             optimizer.zero_grad()
 
-            if scaler and is_cuda:
-                with torch.amp.autocast("cuda"):
-                    output, t = model(content_batch, style_batch)
-                    c_loss = content_loss_fn(output, t)
-                    s_loss = style_loss_fn(output, style_batch)
-                    total_loss = config.content_weight * c_loss + config.style_weight * s_loss
+            output, t = model(content_batch, style_batch)
+            c_loss = content_loss_fn(output, t)
+            s_loss = style_loss_fn(output, style_batch)
+            total_loss = config.content_weight * c_loss + config.style_weight * s_loss
 
-                scaler.scale(total_loss).backward()
-                scaler.step(optimizer)
-                scaler.update()
-            else:
-                output, t = model(content_batch, style_batch)
-                c_loss = content_loss_fn(output, t)
-                s_loss = style_loss_fn(output, style_batch)
-                total_loss = config.content_weight * c_loss + config.style_weight * s_loss
-
-                total_loss.backward()
-                optimizer.step()
+            total_loss.backward()
+            optimizer.step()
 
             epoch_content_loss += c_loss.item()
             epoch_style_loss += s_loss.item()
