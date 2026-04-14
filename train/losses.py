@@ -1,4 +1,4 @@
-"""Content loss and style loss (Gram matrix) for AdaIN training."""
+"""Content loss and style loss for AdaIN training."""
 
 import torch
 import torch.nn as nn
@@ -6,23 +6,17 @@ import torch.nn as nn
 from adain.encoder import VGLEncoder
 
 
-def gram_matrix(features: torch.Tensor) -> torch.Tensor:
-    """Compute the Gram matrix of a feature map.
-
-    Args:
-        features: (B, C, H, W)
-
-    Returns:
-        Gram matrix: (B, C, C)
-    """
+def calc_mean_std(features: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """Compute channel-wise mean and std of feature maps."""
     b, c, h, w = features.size()
-    f = features.view(b, c, h * w)
-    gram = torch.bmm(f, f.transpose(1, 2))
-    return gram / (c * h * w)
+    features_view = features.view(b, c, -1)
+    mean = features_view.mean(dim=2).view(b, c, 1, 1)
+    std = features_view.std(dim=2).view(b, c, 1, 1) + 1e-5
+    return mean, std
 
 
 class ContentLoss(nn.Module):
-    """MSE loss between generated features and AdaIN target at relu4_1."""
+    """MSE between encoder output of generated image and AdaIN target."""
 
     def __init__(self, encoder: VGLEncoder):
         super().__init__()
@@ -34,7 +28,7 @@ class ContentLoss(nn.Module):
 
 
 class StyleLoss(nn.Module):
-    """MSE loss of Gram matrices at multiple relu layers."""
+    """MSE of mean and std at multiple relu layers (AdaIN paper definition)."""
 
     def __init__(self, encoder: VGLEncoder):
         super().__init__()
@@ -46,8 +40,10 @@ class StyleLoss(nn.Module):
 
         loss = torch.tensor(0.0, device=generated.device)
         for key in gen_features:
-            gram_gen = gram_matrix(gen_features[key])
-            gram_style = gram_matrix(style_features[key])
-            loss = loss + nn.functional.mse_loss(gram_gen, gram_style)
+            mu_gen, sigma_gen = calc_mean_std(gen_features[key])
+            mu_style, sigma_style = calc_mean_std(style_features[key])
+
+            loss = loss + nn.functional.mse_loss(mu_gen, mu_style)
+            loss = loss + nn.functional.mse_loss(sigma_gen, sigma_style)
 
         return loss
