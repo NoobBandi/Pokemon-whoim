@@ -55,7 +55,9 @@ def train(config: Config | None = None):
     style_loss_fn = StyleLoss(model.encoder)
 
     # Mixed precision scaler (CUDA only)
-    scaler = torch.amp.GradScaler("cuda") if (is_cuda and config.mixed_precision) else None
+    # Disable AMP on cu118 to avoid NaN issues
+    use_amp = is_cuda and config.mixed_precision and torch.cuda.get_device_capability()[0] >= 8
+    scaler = torch.amp.GradScaler("cuda") if use_amp else None
 
     os.makedirs(config.checkpoint_dir, exist_ok=True)
 

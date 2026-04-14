@@ -41,6 +41,8 @@ class StyleLoss(nn.Module):
         self.encoder = encoder
 
     def forward(self, generated: torch.Tensor, style: torch.Tensor) -> torch.Tensor:
+        # Clamp generated output to valid range to prevent NaN in VGG features
+        generated = generated.clamp(-5, 5)
         gen_features = self.encoder.forward_multi(generated)
         style_features = self.encoder.forward_multi(style)
 

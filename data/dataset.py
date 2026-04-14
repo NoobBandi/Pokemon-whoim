@@ -24,7 +24,7 @@ class PokemonImageDataset(Dataset):
         self.target_size = target_size
         self.image_files = sorted([
             f for f in os.listdir(image_dir)
-            if f.lower().endswith('.png')
+            if f.lower().endswith('.png') and os.path.isfile(os.path.join(image_dir, f))
         ])
         self._alpha_cache: dict[str, Image.Image] = {}
 
