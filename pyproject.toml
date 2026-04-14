@@ -1,0 +1,22 @@
+[project]
+name = "pokemon-project"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "MrBandi",email = "qwea6935@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "kaggle (>=2.0.1,<3.0.0)",
+    "torch (>=2.2)",
+    "torchvision (>=0.17)",
+    "pillow (>=12.2.0,<13.0.0)",
+    "tqdm (>=4.67.3,<5.0.0)",
+    "matplotlib (>=3.10.8,<4.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,18 @@
+# Pokemon AdaIN Style Transfer - Requirements
+# Usage: pip install -r requirements.txt
+# For CUDA (NVIDIA GPU): pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu126
+# For MPS (Apple Silicon): pip install -r requirements.txt
+
+# Deep Learning
+torch>=2.2
+torchvision>=0.17
+
+# Image Processing
+Pillow>=10.0
+
+# Utilities
+tqdm>=4.60
+matplotlib>=3.5
+
+# Dataset Download (optional)
+kaggle>=2.0

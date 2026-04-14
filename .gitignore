@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+
+# Poetry
+poetry.lock
+
+# PyTorch
+*.pth
+
+# Datasets
+dataset/
+
+# Output
+output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+kaggle.json
+.env
+
+# Jupyter
+.ipynb_checkpoints/
