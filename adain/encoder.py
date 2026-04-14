@@ -41,8 +41,12 @@ class VGLEncoder(nn.Module):
         return self.layers(x)
 
     def forward_multi(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
-        """Forward pass returning features at multiple relu layers (for style loss)."""
+        """Single forward pass returning features at multiple relu layers (for style loss)."""
         features = {}
-        for name, idx in ENCODER_RELUS.items():
-            features[name] = self.layers[:idx + 1](x)
+        for i, layer in enumerate(self.layers):
+            x = layer(x)
+            if i in ENCODER_RELUS.values():
+                for name, idx in ENCODER_RELUS.items():
+                    if idx == i:
+                        features[name] = x
         return features
