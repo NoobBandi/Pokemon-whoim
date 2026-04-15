@@ -1,11 +1,18 @@
-# Pokemon AdaIN Style Transfer - Requirements
+# Pokemon Pikachu-ifier - Requirements
 # Usage: pip install -r requirements.txt
-# For CUDA (NVIDIA GPU): pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu126
+# For CUDA (NVIDIA GPU): pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu118
 # For MPS (Apple Silicon): pip install -r requirements.txt
 
 # Deep Learning
 torch>=2.2
 torchvision>=0.17
+
+# Stable Diffusion + ControlNet + IP-Adapter
+diffusers>=0.31.0
+transformers>=4.40.0
+accelerate>=0.30.0
+safetensors>=0.4.0
+sentencepiece>=0.2.0
 
 # Image Processing
 Pillow>=10.0
