@@ -1,26 +1,34 @@
 # Pokemon Pikachu-ifier - Requirements
-# Usage: pip install -r requirements.txt
-# For CUDA (NVIDIA GPU): pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu118
-# For MPS (Apple Silicon): pip install -r requirements.txt
+#
+# Install steps (CUDA / NVIDIA GPU):
+#   1. PyTorch with CUDA 11.8:
+#      pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cu118
+#   2. Everything else (from PyPI):
+#      pip install -r requirements.txt
+#
+# Install steps (Apple Silicon / MPS):
+#   pip install -r requirements.txt
+#
+# After install, verify with: pip check
 
-# Deep Learning
-torch>=2.2
-torchvision>=0.17
+# Deep Learning (install separately with --index-url for CUDA)
+torch==2.7.1
+torchvision==0.22.1
 
 # Stable Diffusion + ControlNet + IP-Adapter
-diffusers>=0.31.0
-transformers>=4.40.0
-accelerate>=0.30.0
-safetensors>=0.4.0
-sentencepiece>=0.2.0
+diffusers==0.31.0
+transformers==4.47.0
+accelerate==1.2.1
+safetensors==0.4.5
+sentencepiece==0.2.0
 
 # Image Processing
-Pillow>=10.0
-opencv-python-headless>=4.0
+Pillow==11.1.0
+opencv-python-headless==4.11.0.86
 
 # Utilities
-tqdm>=4.60
-matplotlib>=3.5
+tqdm==4.67.1
+matplotlib==3.10.0
 
 # Dataset Download (optional)
-kaggle>=2.0
+kaggle==1.7.4.2
