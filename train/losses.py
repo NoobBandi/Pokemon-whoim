@@ -36,7 +36,8 @@ class StyleLoss(nn.Module):
 
     def forward(self, generated: torch.Tensor, style: torch.Tensor) -> torch.Tensor:
         gen_features = self.encoder.forward_multi(generated)
-        style_features = self.encoder.forward_multi(style)
+        with torch.no_grad():
+            style_features = self.encoder.forward_multi(style)
 
         loss = torch.tensor(0.0, device=generated.device)
         for key in gen_features:
