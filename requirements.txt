@@ -9,6 +9,7 @@ torchvision>=0.17
 
 # Image Processing
 Pillow>=10.0
+opencv-python-headless>=4.0
 
 # Utilities
 tqdm>=4.60

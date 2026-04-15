@@ -63,7 +63,17 @@ def train(config: Config | None = None):
     print(f"  Dataset: {len(dataset)} images")
     print(f"  Batch size: {batch_size}")
     print(f"  Epochs: {config.num_epochs}")
+    print(f"  Style: {config.style_image.name} (fixed)")
     print(f"  Device: {device}\n")
+
+    # Load fixed Pikachu style tensor once
+    from data.style_utils import load_style_image
+    style_fixed = load_style_image(
+        str(config.style_image),
+        target_size=config.image_size,
+        imagenet_mean=config.imagenet_mean,
+        imagenet_std=config.imagenet_std,
+    ).to(device)
 
     for epoch in range(config.num_epochs):
         model.train()
@@ -75,9 +85,8 @@ def train(config: Config | None = None):
         for batch_idx, (content_batch, _) in enumerate(pbar):
             content_batch = content_batch.to(device)
 
-            # Randomly sample style images from the same dataset
-            style_indices = torch.randint(0, len(dataset), (batch_size,))
-            style_batch = torch.stack([dataset[i][0] for i in style_indices]).to(device)
+            # Fixed Pikachu style for every batch
+            style_batch = style_fixed.expand(content_batch.size(0), -1, -1, -1)
 
             optimizer.zero_grad()
 

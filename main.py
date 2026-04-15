@@ -11,8 +11,8 @@ def main():
     )
     parser.add_argument(
         "mode",
-        choices=["train", "transfer", "single"],
-        help="train: train the decoder | transfer: batch apply Pikachu style | single: one image",
+        choices=["train", "transfer", "single", "lab_transfer"],
+        help="train: train decoder | transfer: batch AdaIN | single: one image | lab_transfer: batch LAB color",
     )
     parser.add_argument("--input", help="Input image filename for single mode")
     parser.add_argument("--alpha", type=float, default=1.0, help="Style strength (0.0-1.0)")
@@ -26,7 +26,11 @@ def main():
     config.num_epochs = args.epochs
     config.batch_size = args.batch_size
 
-    if args.mode == "train":
+    if args.mode == "lab_transfer":
+        from inference.color_transfer import batch_lab_transfer
+        batch_lab_transfer(config)
+
+    elif args.mode == "train":
         from train.trainer import train
         train(config)
 
