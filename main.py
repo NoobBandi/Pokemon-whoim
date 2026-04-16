@@ -12,10 +12,16 @@ def main():
     )
     parser.add_argument(
         "mode",
-        choices=["train", "transfer", "single", "lab_transfer", "sd_transfer", "sd_single"],
+        choices=[
+            "train", "transfer", "single",
+            "lab_transfer", "sd_transfer", "sd_single",
+            "preview", "batch_preview",
+        ],
         help=(
             "sd_transfer: batch SD+ControlNet+IP-Adapter | "
             "sd_single: one image via SD pipeline | "
+            "preview: Canny edge of one image (instant, no GPU) | "
+            "batch_preview: Canny edges for all images | "
             "lab_transfer: batch LAB color | "
             "train/transfer/single: legacy AdaIN modes"
         ),
@@ -131,7 +137,11 @@ def main():
         config.seed = args.seed
 
         from PIL import Image as PILImage
-        from inference.sd_pipeline import load_sd_pipeline, load_pikachu_reference, generate_single
+        from inference.sd_pipeline import (
+            load_sd_pipeline, load_pikachu_reference, generate_single,
+            make_comparison_grid,
+        )
+        from data.canny_utils import extract_canny_edges
         from data.preprocessing import extract_alpha, rgba_to_rgb_white_bg
         from inference.postprocess import restore_alpha
 
@@ -152,13 +162,50 @@ def main():
         rgb = rgba_to_rgb_white_bg(img)
 
         result = generate_single(pipeline, rgb, pikachu_ref, config, original_size)
-        result = restore_alpha(result, alpha_mask, threshold=128)
+
+        # Save comparison grid
+        rgb_resized = rgb.resize((config.image_size, config.image_size), PILImage.LANCZOS)
+        canny_image = extract_canny_edges(
+            rgb_resized,
+            low_threshold=config.canny_low_threshold,
+            high_threshold=config.canny_high_threshold,
+        )
+        grid = make_comparison_grid(rgb_resized, canny_image, pikachu_ref, result)
 
         os.makedirs(config.sd_output_dir, exist_ok=True)
         base = os.path.splitext(args.input)[0]
-        out_path = config.sd_output_dir / f"{base}_pikachu_sd.png"
-        result.save(out_path, "PNG")
-        print(f"Saved: {out_path}")
+        grid.save(config.sd_output_dir / f"{base}_comparison.png", "PNG")
+
+        # Save final result with alpha
+        result = restore_alpha(result, alpha_mask, threshold=128)
+        result.save(config.sd_output_dir / f"{base}_pikachu_sd.png", "PNG")
+        print(f"Saved: {config.sd_output_dir}/{base}_pikachu_sd.png")
+        print(f"Comparison: {config.sd_output_dir}/{base}_comparison.png")
+
+    elif args.mode == "preview":
+        if not args.input:
+            parser.error("preview mode requires --input")
+
+        from inference.sd_pipeline import preview_single
+
+        config.canny_low_threshold = int(args.controlnet_scale * 100) if args.controlnet_scale != 0.8 else 100
+
+        # Find image
+        image_path = config.image_dir / args.input
+        if not image_path.exists():
+            image_path = config.image_dir / (args.input + ".png")
+        if not image_path.exists():
+            parser.error(f"Image '{args.input}' not found in {config.image_dir}")
+
+        output_dir = str(config.project_root / "output" / "canny_preview")
+        preview_single(config, args.input if not args.input.endswith(".png") else args.input, output_dir)
+
+    elif args.mode == "batch_preview":
+        from inference.sd_pipeline import batch_preview
+
+        config.canny_low_threshold = 100
+        config.canny_high_threshold = 200
+        batch_preview(config)
 
 
 if __name__ == "__main__":

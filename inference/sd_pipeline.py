@@ -17,6 +17,26 @@ from inference.postprocess import restore_alpha
 from utils.config import Config
 from utils.device import get_device
 
+
+def make_comparison_grid(
+    original: Image.Image,
+    canny: Image.Image,
+    pikachu_ref: Image.Image,
+    result: Image.Image,
+) -> Image.Image:
+    """Create a 2x2 comparison grid: original | canny | pikachu ref | result."""
+    size = 512
+    images = [original, canny, pikachu_ref, result]
+    labels = ["Original", "Canny Edges", "Pikachu Ref", "Result"]
+    resized = [img.resize((size, size), Image.LANCZOS) for img in images]
+
+    grid = Image.new("RGB", (size * 2, size * 2), (40, 40, 40))
+    positions = [(0, 0), (size, 0), (0, size), (size, size)]
+    for img, pos in zip(resized, positions):
+        grid.paste(img, pos)
+
+    return grid
+
 logger = logging.getLogger(__name__)
 
 
@@ -201,9 +221,76 @@ def _process_one(pipeline, pikachu_ref, config, image_dir, output_dir, filename)
     alpha_mask = extract_alpha(img)
 
     rgb = rgba_to_rgb_white_bg(img)
+    rgb_resized = rgb.resize((config.image_size, config.image_size), Image.LANCZOS)
+    canny_image = extract_canny_edges(
+        rgb_resized,
+        low_threshold=config.canny_low_threshold,
+        high_threshold=config.canny_high_threshold,
+    )
 
     result = generate_single(pipeline, rgb, pikachu_ref, config, original_size)
-    result = restore_alpha(result, alpha_mask, threshold=128)
 
+    # Save comparison grid
+    grid = make_comparison_grid(rgb_resized, canny_image, pikachu_ref, result)
     base = os.path.splitext(filename)[0]
+    grid.save(output_dir / f"{base}_comparison.png", "PNG")
+
+    # Save final result with alpha
+    result = restore_alpha(result, alpha_mask, threshold=128)
     result.save(output_dir / f"{base}_pikachu_sd.png", "PNG")
+
+
+def preview_single(
+    config: Config,
+    filename: str,
+    output_dir: str | None = None,
+) -> Image.Image:
+    """Generate Canny edge preview for a single image (no SD needed, instant).
+
+    Returns:
+        The Canny edge map as RGB PIL image.
+    """
+    image_path = config.image_dir / filename
+    img = Image.open(image_path).convert("RGBA")
+    rgb = rgba_to_rgb_white_bg(img)
+    rgb_resized = rgb.resize((config.image_size, config.image_size), Image.LANCZOS)
+
+    canny = extract_canny_edges(
+        rgb_resized,
+        low_threshold=config.canny_low_threshold,
+        high_threshold=config.canny_high_threshold,
+    )
+
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        base = os.path.splitext(filename)[0]
+        canny.save(os.path.join(output_dir, f"{base}_canny.png"), "PNG")
+        print(f"Saved Canny: {output_dir}/{base}_canny.png")
+
+    return canny
+
+
+def batch_preview(config: Config | None = None):
+    """Generate Canny edge previews for all Pokemon images (no GPU needed)."""
+    if config is None:
+        config = Config()
+
+    output_dir = config.project_root / "output" / "canny_preview"
+    os.makedirs(output_dir, exist_ok=True)
+
+    image_files = sorted([
+        f for f in os.listdir(config.image_dir)
+        if f.lower().endswith(".png") and os.path.isfile(os.path.join(config.image_dir, f))
+    ])
+
+    print(f"\nCanny preview: {len(image_files)} images")
+    print(f"  Thresholds: ({config.canny_low_threshold}, {config.canny_high_threshold})")
+    print(f"  Output: {output_dir}\n")
+
+    for filename in tqdm(image_files, desc="Canny preview"):
+        try:
+            preview_single(config, filename, str(output_dir))
+        except Exception as e:
+            logger.error("Failed on %s: %s", filename, e)
+
+    print(f"\nDone! Previews in {output_dir}")
