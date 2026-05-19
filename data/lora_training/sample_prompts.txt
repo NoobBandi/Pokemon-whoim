@@ -1,0 +1,4 @@
+pkmn-pikachu, yellow pokemon with red cheeks and black ear tips, cartoon style, white background --w 512 --h 512 --d 42 --s 25 --l 7.5
+pkmn-pikachu standing facing front, cartoon illustration, white background --w 512 --h 512 --d 100 --s 25 --l 7.5
+pkmn-pikachu, small yellow electric-type pokemon, white background --w 512 --h 512 --d 1234 --s 25 --l 7.5
+pkmn-pikachu --w 512 --h 512 --d 7 --s 25 --l 7.5
