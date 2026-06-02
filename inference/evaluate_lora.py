@@ -143,6 +143,8 @@ def main() -> None:
     parser.add_argument("--prompt", default="",
                         help="Empty = pure non-semantic (CFG no-op). A short prompt re-enables CFG.")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--canny-low", type=int, help="Canny low threshold (higher = fewer internal lines)")
+    parser.add_argument("--canny-high", type=int, help="Canny high threshold")
     parser.add_argument("--output", default=str(root / "output" / "lora_eval" / "grid.png"))
     # Sweep mode: find the lora/controlnet balance on one checkpoint + one input.
     parser.add_argument("--sweep", action="store_true",
@@ -156,6 +158,10 @@ def main() -> None:
     args = parser.parse_args()
 
     config = Config()
+    if args.canny_low is not None:
+        config.canny_low_threshold = args.canny_low
+    if args.canny_high is not None:
+        config.canny_high_threshold = args.canny_high
     device = get_device()
     dtype = torch.float16 if device.type == "cuda" else torch.float32
 
