@@ -82,10 +82,10 @@ def _label(img: Image.Image, text: str) -> None:
 
 
 def _generate(pipe, canny, lora_scale, cnet_scale, args):
-    """One non-semantic generation: empty prompt + ControlNet + LoRA."""
+    """One generation: prompt (default empty) + ControlNet + LoRA."""
     generator = torch.Generator(device="cpu").manual_seed(args.seed)
     return pipe(
-        prompt="",
+        prompt=args.prompt,
         image=canny,
         num_inference_steps=args.steps,
         guidance_scale=args.guidance,
@@ -140,6 +140,8 @@ def main() -> None:
                         help="High = host structure priority")
     parser.add_argument("--steps", type=int, default=25)
     parser.add_argument("--guidance", type=float, default=7.5)
+    parser.add_argument("--prompt", default="",
+                        help="Empty = pure non-semantic (CFG no-op). A short prompt re-enables CFG.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", default=str(root / "output" / "lora_eval" / "grid.png"))
     # Sweep mode: find the lora/controlnet balance on one checkpoint + one input.
@@ -198,16 +200,7 @@ def main() -> None:
         print(f"[{i + 1}/{len(checkpoints)}] {ckpt.name}")
         pipe.load_lora_weights(str(ckpt))
         for j, (name, _rgb, canny) in enumerate(cols):
-            generator = torch.Generator(device="cpu").manual_seed(args.seed)
-            out = pipe(
-                prompt="",  # non-semantic: empty prompt
-                image=canny,
-                num_inference_steps=args.steps,
-                guidance_scale=args.guidance,
-                controlnet_conditioning_scale=args.controlnet_scale,
-                cross_attention_kwargs={"scale": args.lora_scale},
-                generator=generator,
-            ).images[0]
+            out = _generate(pipe, canny, args.lora_scale, args.controlnet_scale, args)
             out = out.resize((cell, cell))
             _label(out, f"s{step_tag}")
             grid.paste(out, (j * cell, (i + 1) * cell))
