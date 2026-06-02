@@ -1,7 +1,10 @@
+# Non-semantic, always-on Pikachu LoRA dataset.
+# IMPORTANT: do NOT set class_tokens — captions are intentionally empty so the
+# LoRA trains as an unconditional appearance shift. (shuffle_caption/keep_tokens
+# are omitted: they do nothing with empty captions and shuffle_caption would
+# also conflict with --cache_text_encoder_outputs.)
 [general]
-shuffle_caption = true
 caption_extension = ".txt"
-keep_tokens = 1
 enable_bucket = true
 min_bucket_reso = 256
 max_bucket_reso = 1024
@@ -14,4 +17,4 @@ batch_size = 4
 
   [[datasets.subsets]]
   image_dir = "data/lora_training/image"
-  num_repeats = 10
+  num_repeats = 12

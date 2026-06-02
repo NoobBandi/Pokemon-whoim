@@ -105,9 +105,10 @@ pip install bitsandbytes  # AdamW8bit optimizer
 **目錄結構**：
 ```
 data/lora_training/
-  image/              # ~45 張 PNG
-  meta_lat.json       # sd-scripts 格式的 caption metadata
-  dataset_config.toml # sd-scripts 訓練配置
+  image/              # 42 張 PNG + 同名空 .txt caption
+  meta_cap.json       # caption metadata（記錄用）
+  dataset_config.toml # sd-scripts 訓練配置（無 class_tokens）
+  train_lora.sh       # UNet-only 訓練指令（可直接跑）
 ```
 
 ### Caption 策略（完全非語意）
@@ -172,7 +173,6 @@ accelerate launch --num_cpu_threads_per_process 4 \
   --gradient_checkpointing \
   --sdpa \
   --save_every_n_steps=500 \
-  --sample_every_n_steps=500 \
   --resolution=512,512 \
   --seed=42 \
   --cache_latents \
@@ -219,18 +219,17 @@ CLI 新增：`--lora-scale`, `--no-lora`（切換回 IP-Adapter）
 
 | # | 步驟 | 在哪裡做 |
 |---|------|---------|
-| 1 | 建立 `data/prepare_lora_data.py`（資料篩選 + 擴增 + caption） | 本機 |
-| 2 | 執行腳本產出 `data/lora_training/` | 本機 |
-| 3 | 人工檢閱 captions 品質 | 本機 |
-| 4 | Server 上 clone sd-scripts + 安裝依賴 | Server |
-| 5 | 傳訓練資料到 Server | scp |
-| 6 | 撰寫 `dataset_config.toml` 和 `sample_prompts.txt` | Server |
-| 7 | 執行訓練（~15 分鐘） | Server |
-| 8 | 監控 loss 曲線，選最佳 checkpoint（通常 step 1500-2500） | Server |
-| 9 | 複製 LoRA 權重回專案 `output/lora/` | scp |
-| 10 | 修改 `config.py` + `sd_pipeline.py` + `main.py` 整合 LoRA | 本機 |
-| 11 | 建立 `inference/evaluate.py` 比較腳本 | 本機 |
-| 12 | 跑評估，比較 IP-Adapter vs LoRA vs 兩者 | Server |
+| 1 | 建立 `data/prepare_lora_data.py`（資料篩選 + 擴增 + 空 caption） | 本機 ✅ |
+| 2 | 執行腳本產出 `data/lora_training/`（42 張 + 空 caption） | 本機 ✅ |
+| 3 | `dataset_config.toml`（無 class_tokens）+ `train_lora.sh`（UNet-only） | 本機 ✅ |
+| 4 | 訓練機 clone sd-scripts + 裝 cu128 torch + bitsandbytes | 訓練機 |
+| 5 | `git pull`（資料已在 repo）；設定 `SD_SCRIPTS` 路徑 | 訓練機 |
+| 6 | 跑 `bash data/lora_training/train_lora.sh`（~30–50 分） | 訓練機 |
+| 7 | 選最佳 checkpoint（通常 step 1500-2500） | 訓練機 |
+| 8 | 複製 LoRA 權重回專案 `output/lora/` | scp/git |
+| 9 | 修改 `config.py` + `sd_pipeline.py` + `main.py` 整合 LoRA | 本機 |
+| 10 | 建立 `inference/evaluate.py` 比較腳本 | 本機 |
+| 11 | 跑評估，比較 IP-Adapter vs LoRA vs 兩者 | 訓練機 |
 
 ## Project Structure
 
