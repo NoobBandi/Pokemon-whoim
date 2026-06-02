@@ -1,15 +1,20 @@
 """Prepare LoRA training data: select Pikachu images, rotate, composite, write captions.
 
+This is a NON-semantic concept LoRA: every caption is a single trigger token
+(no descriptive sentences), and the LoRA is meant to be trained UNet-only so the
+text encoder learns no language. The token is just an activation switch, not a
+phrase the model has to "understand". Appearance lives in the UNet weights;
+at inference, structure comes from ControlNet (the host outline).
+
 Outputs (under data/lora_training/):
-  image/*.png        # originals + rotated, composited onto white
-  image/*.txt        # one caption per image (sd-scripts default convention)
-  meta_cap.json      # consolidated caption metadata (sd-scripts format)
+  image/*.png        # originals + flipped/rotated, composited onto white
+  image/*.txt        # one caption per image (just the trigger token)
+  meta_cap.json      # consolidated caption metadata
 """
 
 from __future__ import annotations
 
 import json
-import random
 from pathlib import Path
 
 from PIL import Image
@@ -30,22 +35,9 @@ SOURCE_IMAGES = [
 ROTATION_ANGLES = [0, -5, 5, -10, 10, -15, 15]
 FLIPS = [False, True]
 
+# Single trigger token only — no descriptive captions, no semantics.
 TRIGGER = "pkmn-pikachu"
-
-CAPTION_TEMPLATES = [
-    (
-        f"{TRIGGER}, a small yellow electric-type pokemon with round red cheek pouches, "
-        f"pointed ears with black tips, a zigzag lightning-shaped tail, "
-        f"simple cartoon illustration on white background"
-    ),
-    f"{TRIGGER}, yellow pokemon, white background",
-    f"{TRIGGER} standing, yellow fur with red cheeks, cartoon style, white background",
-    (
-        f"{TRIGGER}, yellow creature with red cheek patches and black ear tips, "
-        f"sugimori-style pokemon illustration, white background"
-    ),
-    f"{TRIGGER}, bright yellow body, brown stripes on back, white background",
-]
+CAPTION = TRIGGER
 
 
 def crop_to_content(rgba: Image.Image) -> Image.Image:
@@ -102,12 +94,10 @@ def prepare(
     output_dir: Path,
     resolution: int = 512,
     margin: float = 0.85,
-    seed: int = 42,
 ) -> dict:
     image_dir = output_dir / "image"
     image_dir.mkdir(parents=True, exist_ok=True)
 
-    rng = random.Random(seed)
     meta: dict[str, dict] = {}
     n_saved = 0
 
@@ -126,7 +116,7 @@ def prepare(
                 tag = "f" if flip else "o"
                 sign = "p" if angle >= 0 else "m"
                 stem = f"{base}_{tag}_r{sign}{abs(angle):02d}"
-                save_pair(aug, image_dir, stem, rng.choice(CAPTION_TEMPLATES), meta)
+                save_pair(aug, image_dir, stem, CAPTION, meta)
                 n_saved += 1
 
     meta_path = output_dir / "meta_cap.json"

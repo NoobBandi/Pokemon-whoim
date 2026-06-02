@@ -110,23 +110,18 @@ data/lora_training/
   dataset_config.toml # sd-scripts 訓練配置
 ```
 
-### Caption 策略
+### Caption 策略（非語意）
 
-- **Trigger token**: `pkmn-pikachu`
-- 每張圖都必須包含 trigger token
-- 變化描述長度，避免模型死記固定詞句：
+**這是純視覺概念 LoRA，不依賴文字語意**。所以：
+
+- 每張圖的 caption **只有單一 trigger token** `pkmn-pikachu`，不寫任何描述句
+- trigger token 只是「啟動開關」，不是要模型讀懂的句子
+- **只訓 UNet、不訓 text encoder**（`--network_train_unet_only`）→ 完全不教語言
+- 皮卡丘外觀存在 UNet 權重；推理時結構由 ControlNet（宿主輪廓）決定，prompt 可空
 
 ```
-# 詳細版
-"pkmn-pikachu, a small yellow electric-type pokemon with round red cheek pouches,
- pointed ears with black tips, a zigzag lightning-shaped tail,
- simple cartoon illustration on white background"
-
-# 簡短版
-"pkmn-pikachu, yellow pokemon, white background"
-
-# 姿勢描述版
-"pkmn-pikachu standing, facing left, yellow fur with red cheeks, cartoon style"
+# 每張圖的 .txt 內容就是這一行，沒有別的
+pkmn-pikachu
 ```
 
 ### LoRA 超參數
@@ -136,7 +131,7 @@ data/lora_training/
 | Network Dim (Rank) | 32 | 足夠表達皮卡丘的色彩/形狀特徵 |
 | Network Alpha | 16 | Rank/2，正則化防止過擬合 |
 | Learning Rate (UNet) | 1e-4 | 概念 LoRA 標準值 |
-| Learning Rate (Text Encoder) | 5e-5 | Text encoder 需要更溫和的更新 |
+| Text Encoder | **不訓練** | `--network_train_unet_only`，非語意路線、不教語言 |
 | LR Scheduler | Cosine + 10% warmup | 平滑衰減，~200 步 warmup |
 | Optimizer | AdamW8bit | 省 VRAM，品質不減 |
 | Batch Size | 4 | 16G 可承受（512 + dim32 + cache latents，約佔 8–10GB；OOM 就降到 2） |
@@ -162,8 +157,8 @@ accelerate launch --num_cpu_threads_per_process 4 \
   --save_model_as=safetensors \
   --max_train_steps=2500 \
   --learning_rate=1e-4 \
-  --text_encoder_lr=5e-5 \
   --unet_lr=1e-4 \
+  --network_train_unet_only \
   --lr_scheduler=cosine \
   --lr_warmup_steps=200 \
   --train_batch_size=4 \
@@ -199,9 +194,9 @@ lora_scale: float = 0.8
 lora_trigger_token: str = "pkmn-pikachu"
 ```
 
-Prompt 改為以 trigger token 開頭：
+Prompt 為**單一 trigger token、不寫描述句**（非語意路線）：
 ```python
-prompt: str = "pkmn-pikachu, a yellow creature with red cheeks, black ear tips, cartoon style, white background"
+prompt: str = "pkmn-pikachu"
 ```
 
 CLI 新增：`--lora-scale`, `--no-lora`（切換回 IP-Adapter）
