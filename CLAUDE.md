@@ -30,8 +30,7 @@ pip install -r requirements.txt
 
 - Python: >=3.11
 - 本機: Poetry (`poetry install`)
-- 訓練機: pip + requirements.txt (CUDA 12.8)
-- 訓練機: NVIDIA RTX 5060 Ti 16GB (Blackwell)
+- 訓練機: Windows + NVIDIA RTX 5060 Ti 16GB (Blackwell, CUDA 12.8)
 
 ## CLI Usage
 
@@ -108,7 +107,7 @@ data/lora_training/
   image/              # 42 張 PNG + 同名空 .txt caption
   meta_cap.json       # caption metadata（記錄用）
   dataset_config.toml # sd-scripts 訓練配置（無 class_tokens）
-  train_lora.sh       # UNet-only 訓練指令（可直接跑）
+  train_lora.bat      # UNet-only 訓練指令（Windows 訓練機可直接跑）
 ```
 
 ### Caption 策略（完全非語意）
@@ -221,10 +220,10 @@ CLI 新增：`--lora-scale`, `--no-lora`（切換回 IP-Adapter）
 |---|------|---------|
 | 1 | 建立 `data/prepare_lora_data.py`（資料篩選 + 擴增 + 空 caption） | 本機 ✅ |
 | 2 | 執行腳本產出 `data/lora_training/`（42 張 + 空 caption） | 本機 ✅ |
-| 3 | `dataset_config.toml`（無 class_tokens）+ `train_lora.sh`（UNet-only） | 本機 ✅ |
+| 3 | `dataset_config.toml`（無 class_tokens）+ `train_lora.bat`（UNet-only） | 本機 ✅ |
 | 4 | 訓練機 clone sd-scripts + 裝 cu128 torch + bitsandbytes | 訓練機 |
 | 5 | `git pull`（資料已在 repo）；設定 `SD_SCRIPTS` 路徑 | 訓練機 |
-| 6 | 跑 `bash data/lora_training/train_lora.sh`（~30–50 分） | 訓練機 |
+| 6 | 跑 `data\lora_training\train_lora.bat`（~30–50 分） | 訓練機(Windows) |
 | 7 | 選最佳 checkpoint（通常 step 1500-2500） | 訓練機 |
 | 8 | 複製 LoRA 權重回專案 `output/lora/` | scp/git |
 | 9 | 修改 `config.py` + `sd_pipeline.py` + `main.py` 整合 LoRA | 本機 |
