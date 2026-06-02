@@ -12,6 +12,7 @@ from PIL import Image
 from tqdm import tqdm
 
 from data.canny_utils import extract_canny_edges
+from data.outline_utils import controlnet_canny
 from data.preprocessing import extract_alpha, rgba_to_rgb_white_bg
 from inference.postprocess import restore_alpha
 from utils.config import Config
@@ -150,7 +151,7 @@ def generate_single(
         (config.image_size, config.image_size), Image.LANCZOS,
     )
 
-    canny_image = extract_canny_edges(
+    canny_image = controlnet_canny(
         target_resized,
         low_threshold=config.canny_low_threshold,
         high_threshold=config.canny_high_threshold,
@@ -240,7 +241,7 @@ def _process_one(pipeline, pikachu_ref, config, image_dir, output_dir, filename)
 
     rgb = rgba_to_rgb_white_bg(img)
     rgb_resized = rgb.resize((config.image_size, config.image_size), Image.LANCZOS)
-    canny_image = extract_canny_edges(
+    canny_image = controlnet_canny(
         rgb_resized,
         low_threshold=config.canny_low_threshold,
         high_threshold=config.canny_high_threshold,

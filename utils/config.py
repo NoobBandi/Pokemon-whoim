@@ -48,9 +48,10 @@ class Config:
     lora_scale: float = 0.9
     lora_weight_path: Path = field(init=False)
 
-    # Canny edge detection
-    canny_low_threshold: int = 100
-    canny_high_threshold: int = 200
+    # Canny edge detection (outline_utils.controlnet_canny defaults — captures
+    # more internal detail: eyes, belly, limb lines)
+    canny_low_threshold: int = 80
+    canny_high_threshold: int = 160
 
     # Prompts
     # The LoRA carries Pikachu's look; this fixed prompt is a technical CFG

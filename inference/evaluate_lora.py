@@ -26,7 +26,7 @@ from pathlib import Path
 import torch
 from PIL import Image, ImageDraw
 
-from data.canny_utils import extract_canny_edges
+from data.outline_utils import controlnet_canny
 from data.preprocessing import rgba_to_rgb_white_bg
 from utils.config import Config
 from utils.device import get_device
@@ -66,7 +66,7 @@ def canny_of(path: Path, config: Config) -> tuple[Image.Image, Image.Image]:
     """Return (white-bg RGB, Canny edge map) at the model resolution."""
     rgb = rgba_to_rgb_white_bg(Image.open(path).convert("RGBA"))
     rgb = rgb.resize((config.image_size, config.image_size), Image.LANCZOS)
-    canny = extract_canny_edges(
+    canny = controlnet_canny(
         rgb,
         low_threshold=config.canny_low_threshold,
         high_threshold=config.canny_high_threshold,

@@ -153,7 +153,7 @@ def main():
             load_sd_pipeline, load_pikachu_reference, generate_single,
             make_comparison_grid,
         )
-        from data.canny_utils import extract_canny_edges
+        from data.outline_utils import controlnet_canny
         from data.preprocessing import extract_alpha, rgba_to_rgb_white_bg
         from inference.postprocess import restore_alpha
 
@@ -177,7 +177,7 @@ def main():
 
         # Save comparison grid
         rgb_resized = rgb.resize((config.image_size, config.image_size), PILImage.LANCZOS)
-        canny_image = extract_canny_edges(
+        canny_image = controlnet_canny(
             rgb_resized,
             low_threshold=config.canny_low_threshold,
             high_threshold=config.canny_high_threshold,

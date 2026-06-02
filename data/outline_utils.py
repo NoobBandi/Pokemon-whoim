@@ -103,6 +103,30 @@ def to_lineart_canny(
     return Image.fromarray(lines, mode="L").convert("RGB")
 
 
+def controlnet_canny(
+    pil_image: Image.Image,
+    low_threshold: int = 80,
+    high_threshold: int = 160,
+) -> Image.Image:
+    """ControlNet-ready line map: same extraction as the `canny` outline style
+    (white-bg composite + 80/160 thresholds -> more internal detail like eyes,
+    belly and limb lines), but WHITE lines on BLACK — the polarity ControlNet
+    expects (not inverted like the human-viewing `canny` style).
+    """
+    import cv2
+
+    if pil_image.mode == "RGBA":
+        rgb = Image.alpha_composite(
+            Image.new("RGBA", pil_image.size, (255, 255, 255, 255)), pil_image
+        ).convert("RGB")
+    else:
+        rgb = pil_image.convert("RGB")
+
+    gray = cv2.cvtColor(np.array(rgb), cv2.COLOR_RGB2GRAY)
+    edges = cv2.Canny(gray, low_threshold, high_threshold)
+    return Image.fromarray(np.stack([edges, edges, edges], axis=-1), mode="RGB")
+
+
 def extract_outline(
     pil_image: Image.Image,
     style: str = "silhouette",
