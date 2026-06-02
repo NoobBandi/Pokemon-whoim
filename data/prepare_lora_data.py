@@ -14,19 +14,21 @@ from pathlib import Path
 
 from PIL import Image
 
-from data.preprocessing import rgba_to_rgb_white_bg
 
-
+# Cleanest core artworks only: clear eyes, red cheeks, black ear tips, yellow
+# body. Costume/hat variants (Libre mask, Phd glasses, *-Cap) are excluded
+# because they obscure the core features we want the model to learn.
 SOURCE_IMAGES = [
     "025.png",
     "025-Starter.png",
-    "025-Libre.png",
-    "025-Gmax.png",
-    "025-Phd.png",
     "025-Cosplay.png",
 ]
 
-ROTATION_ANGLES = [-15, -10, -5, 5, 10, 15]
+# Original + horizontal flip; Pikachu's face is left-right symmetric so flipping
+# is safe and doubles the data. Rotations add pose variety. (No vertical flip —
+# an upside-down Pikachu is invalid data.)
+ROTATION_ANGLES = [0, -5, 5, -10, 10, -15, 15]
+FLIPS = [False, True]
 
 TRIGGER = "pkmn-pikachu"
 
@@ -46,47 +48,68 @@ CAPTION_TEMPLATES = [
 ]
 
 
-def alpha_touches_border(rgba: Image.Image, alpha_threshold: int = 10) -> bool:
-    """True if any non-transparent pixel sits on the canvas border."""
-    alpha = rgba.split()[-1].point(lambda v: 255 if v > alpha_threshold else 0)
-    bbox = alpha.getbbox()
-    if bbox is None:
-        return False
-    left, top, right, bottom = bbox
-    w, h = alpha.size
-    return left == 0 or top == 0 or right == w or bottom == h
+def crop_to_content(rgba: Image.Image) -> Image.Image:
+    """Crop an RGBA image to its non-transparent bounding box."""
+    bbox = rgba.split()[-1].getbbox()
+    return rgba.crop(bbox) if bbox else rgba
 
 
-def rotate_rgba(rgba: Image.Image, angle: float) -> Image.Image:
-    return rgba.rotate(
-        angle,
-        resample=Image.BICUBIC,
-        expand=False,
-        fillcolor=(0, 0, 0, 0),
+def fit_on_white(rgba: Image.Image, resolution: int, margin: float) -> Image.Image:
+    """Scale to fit within `margin` of a square white canvas, centered, as RGB.
+
+    Fitting *after* rotation guarantees the character is never cropped and
+    normalizes every augmentation to the same scale.
+    """
+    max_side = resolution * margin
+    w, h = rgba.size
+    scale = max_side / max(w, h)
+    resized = rgba.resize(
+        (max(1, round(w * scale)), max(1, round(h * scale))), Image.LANCZOS
     )
+
+    canvas = Image.new("RGBA", (resolution, resolution), (255, 255, 255, 255))
+    offset = ((resolution - resized.width) // 2, (resolution - resized.height) // 2)
+    canvas.paste(resized, offset, resized)  # use alpha as paste mask
+    return canvas.convert("RGB")
+
+
+def augment_one(
+    rgba: Image.Image, flip: bool, angle: float, resolution: int, margin: float
+) -> Image.Image:
+    """Optional flip, rotate (no cropping), then center on a white canvas."""
+    from PIL import ImageOps
+
+    img = ImageOps.mirror(rgba) if flip else rgba
+    img = crop_to_content(img)
+    rotated = img.rotate(angle, resample=Image.BICUBIC, expand=True)
+    return fit_on_white(rotated, resolution, margin)
 
 
 def save_pair(
-    rgba: Image.Image,
+    rgb: Image.Image,
     out_dir: Path,
     stem: str,
     caption: str,
     meta: dict,
 ) -> None:
-    rgb = rgba_to_rgb_white_bg(rgba)
     rgb.save(out_dir / f"{stem}.png", "PNG")
     (out_dir / f"{stem}.txt").write_text(caption, encoding="utf-8")
     meta[stem] = {"caption": caption}
 
 
-def prepare(source_dir: Path, output_dir: Path, seed: int = 42) -> dict:
+def prepare(
+    source_dir: Path,
+    output_dir: Path,
+    resolution: int = 512,
+    margin: float = 0.85,
+    seed: int = 42,
+) -> dict:
     image_dir = output_dir / "image"
     image_dir.mkdir(parents=True, exist_ok=True)
 
     rng = random.Random(seed)
     meta: dict[str, dict] = {}
     n_saved = 0
-    n_skipped = 0
 
     for name in SOURCE_IMAGES:
         src = source_dir / name
@@ -97,19 +120,14 @@ def prepare(source_dir: Path, output_dir: Path, seed: int = 42) -> dict:
         rgba = Image.open(src).convert("RGBA")
         base = src.stem
 
-        save_pair(rgba, image_dir, base, rng.choice(CAPTION_TEMPLATES), meta)
-        n_saved += 1
-
-        for angle in ROTATION_ANGLES:
-            rotated = rotate_rgba(rgba, angle)
-            if alpha_touches_border(rotated):
-                print(f"  - skip {base} angle={angle:+d} (character cropped)")
-                n_skipped += 1
-                continue
-            sign = "p" if angle > 0 else "n"
-            stem = f"{base}_rot{sign}{abs(angle):02d}"
-            save_pair(rotated, image_dir, stem, rng.choice(CAPTION_TEMPLATES), meta)
-            n_saved += 1
+        for flip in FLIPS:
+            for angle in ROTATION_ANGLES:
+                aug = augment_one(rgba, flip, angle, resolution, margin)
+                tag = "f" if flip else "o"
+                sign = "p" if angle >= 0 else "m"
+                stem = f"{base}_{tag}_r{sign}{abs(angle):02d}"
+                save_pair(aug, image_dir, stem, rng.choice(CAPTION_TEMPLATES), meta)
+                n_saved += 1
 
     meta_path = output_dir / "meta_cap.json"
     meta_path.write_text(
@@ -119,7 +137,6 @@ def prepare(source_dir: Path, output_dir: Path, seed: int = 42) -> dict:
 
     return {
         "n_saved": n_saved,
-        "n_skipped": n_skipped,
         "image_dir": image_dir,
         "meta_path": meta_path,
     }
@@ -127,7 +144,7 @@ def prepare(source_dir: Path, output_dir: Path, seed: int = 42) -> dict:
 
 def main():
     project_root = Path(__file__).parent.parent
-    source_dir = project_root / "dataset" / "HybridShivam-Pokemon" / "assets" / "images"
+    source_dir = project_root / "dataset" / "images"
     output_dir = project_root / "data" / "lora_training"
 
     print(f"Source: {source_dir}")
@@ -137,10 +154,9 @@ def main():
     summary = prepare(source_dir, output_dir)
 
     print()
-    print(f"Saved:   {summary['n_saved']} images")
-    print(f"Skipped: {summary['n_skipped']} cropped rotations")
-    print(f"Images:  {summary['image_dir']}")
-    print(f"Meta:    {summary['meta_path']}")
+    print(f"Saved:  {summary['n_saved']} images + captions")
+    print(f"Images: {summary['image_dir']}")
+    print(f"Meta:   {summary['meta_path']}")
 
 
 if __name__ == "__main__":

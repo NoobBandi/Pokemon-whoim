@@ -149,7 +149,7 @@ data/lora_training/
 
 ```bash
 accelerate launch --num_cpu_threads_per_process 4 \
-  sdxl_train_network.py \
+  train_network.py \
   --pretrained_model_name_or_path="runwayml/stable-diffusion-v1-5" \
   --dataset_config="data/lora_training/dataset_config.toml" \
   --output_dir="output/lora" \
