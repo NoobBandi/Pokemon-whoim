@@ -31,7 +31,7 @@ class Config:
     mixed_precision: bool = True
 
     # ---- Stable Diffusion Pipeline ----
-    sd_model_id: str = "runwayml/stable-diffusion-v1-5"
+    sd_model_id: str = "stable-diffusion-v1-5/stable-diffusion-v1-5"  # runwayml repo was removed from HF
     controlnet_model_id: str = "lllyasviel/control_v11p_sd15_canny"
     ip_adapter_repo: str = "h94/IP-Adapter"
     ip_adapter_weight: str = "ip-adapter_sd15.bin"
