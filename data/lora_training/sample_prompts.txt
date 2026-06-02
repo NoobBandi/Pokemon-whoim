@@ -1,0 +1,8 @@
+# Empty-prompt samples (no text, no semantics). These read out what the LoRA
+# baked into the UNet. By ~step 1500-2500 they should clearly show a yellow
+# body, round red cheeks, black ear tips, and Pikachu eyes. Multiple seeds
+# check consistency. Each line starts with --, so the prompt itself is empty.
+--w 512 --h 512 --d 42 --s 25
+--w 512 --h 512 --d 100 --s 25
+--w 512 --h 512 --d 1234 --s 25
+--w 512 --h 512 --d 7 --s 25

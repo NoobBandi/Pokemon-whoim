@@ -36,12 +36,19 @@ accelerate launch --num_cpu_threads_per_process 4 ^
   --gradient_checkpointing ^
   --sdpa ^
   --save_every_n_steps=500 ^
+  --sample_every_n_steps=500 ^
+  --sample_prompts="data/lora_training/sample_prompts.txt" ^
+  --sample_sampler=euler_a ^
   --resolution=512,512 ^
   --seed=42 ^
-  --cache_latents ^
-  --cache_text_encoder_outputs
+  --cache_latents
 
-REM No --sample_*: captions are empty and the text encoder is frozen, so kohya's
-REM text-prompt sampler is meaningless here. Checkpoints land every 500 steps;
-REM evaluate them with the real ControlNet + empty-prompt pipeline instead.
+REM NOTE: --cache_text_encoder_outputs is intentionally omitted — it frees the
+REM text encoder, which conflicts with sample generation during training. The TE
+REM is frozen (unet-only) and captions are empty, so keeping it loaded costs
+REM almost nothing.
+
+REM Samples use an EMPTY prompt (see sample_prompts.txt) — they read out what the
+REM LoRA learned, with no text. Watch output/lora/sample/ every 500 steps: a
+REM yellow body + red cheeks + black ear tips + Pikachu eyes should emerge.
 endlocal

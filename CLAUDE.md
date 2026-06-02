@@ -172,11 +172,18 @@ accelerate launch --num_cpu_threads_per_process 4 \
   --gradient_checkpointing \
   --sdpa \
   --save_every_n_steps=500 \
+  --sample_every_n_steps=500 \
+  --sample_prompts="data/lora_training/sample_prompts.txt" \
+  --sample_sampler=euler_a \
   --resolution=512,512 \
   --seed=42 \
-  --cache_latents \
-  --cache_text_encoder_outputs
+  --cache_latents
 ```
+
+> **監控學習用空 prompt sampling**：`sample_prompts.txt` 每行都以 `--` 開頭（prompt 為空），
+> 每 500 步在 `output/lora/sample/` 產圖，讀出 LoRA 目前學到的皮卡丘外觀。
+> 不用 `--cache_text_encoder_outputs`：它會釋放 text encoder，與訓練中 sampling 衝突
+> （TE 凍結 + 空 caption，留著幾乎零成本）。
 
 ### 整合方案
 
