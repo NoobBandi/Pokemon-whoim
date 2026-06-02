@@ -16,7 +16,7 @@ cd /d "%~dp0..\.."
 
 accelerate launch --num_cpu_threads_per_process 4 ^
   "%SD_SCRIPTS%\train_network.py" ^
-  --pretrained_model_name_or_path="runwayml/stable-diffusion-v1-5" ^
+  --pretrained_model_name_or_path="stable-diffusion-v1-5/stable-diffusion-v1-5" ^
   --dataset_config="data/lora_training/dataset_config.toml" ^
   --output_dir="output/lora" ^
   --output_name="pikachu_lora_v1" ^

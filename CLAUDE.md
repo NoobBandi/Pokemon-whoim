@@ -104,8 +104,8 @@ pip install bitsandbytes  # AdamW8bit optimizer
 **目錄結構**：
 ```
 data/lora_training/
-  image/              # 42 張 PNG + 同名空 .txt caption
-  meta_cap.json       # caption metadata（記錄用）
+  image/              # 42 張 PNG（無 .txt — 刻意不放，empty caption）
+  meta_cap.json       # 影像清單（caption 記錄為 ""）
   dataset_config.toml # sd-scripts 訓練配置（無 class_tokens）
   train_lora.bat      # UNet-only 訓練指令（Windows 訓練機可直接跑）
 ```
@@ -114,17 +114,16 @@ data/lora_training/
 
 **這是純視覺概念 LoRA，完全不依賴文字語意**。所以：
 
-- 每張圖的 caption **是空字串**（0 bytes），連 trigger token 都沒有
+- **完全不放 caption 檔**（連空 .txt 都不要——kohya 會對空 caption 檔報錯）
 - **只訓 UNet、不訓 text encoder**（`--network_train_unet_only`）→ 完全不教語言
 - LoRA 成為**永遠啟動的外觀位移**：皮卡丘長相存在 UNet 權重，無條件套用
 - 推理時 **prompt 留空 `""`**，結構由 ControlNet（宿主輪廓）決定
 - 這正符合目標：把*每一隻*寶可夢都變皮卡丘，無需任何觸發詞
 
-```
-# 每張圖的 .txt 內容是空的（沒有任何文字）
-```
-
-> dataset_config.toml **不要設 `class_tokens`**（設了會被當成 caption 注入），保持真正空 caption。
+> **如何得到「真正的空 caption」**：`image/` 裡只有 PNG、沒有 .txt；且
+> dataset_config.toml **不要設 `class_tokens`**。kohya 在「無 caption 檔 + 無
+> class_tokens」時會自動用空 caption `""`（每張會印一行 warning，正常、可忽略）。
+> ⚠️ 不要放空的 .txt——kohya 會 `AssertionError: caption file is empty`。
 
 ### LoRA 超參數
 
@@ -152,7 +151,7 @@ data/lora_training/
 ```bash
 accelerate launch --num_cpu_threads_per_process 4 \
   train_network.py \
-  --pretrained_model_name_or_path="runwayml/stable-diffusion-v1-5" \
+  --pretrained_model_name_or_path="stable-diffusion-v1-5/stable-diffusion-v1-5" \
   --dataset_config="data/lora_training/dataset_config.toml" \
   --output_dir="output/lora" \
   --output_name="pikachu_lora_v1" \

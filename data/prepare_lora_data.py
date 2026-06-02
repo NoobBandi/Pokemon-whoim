@@ -1,15 +1,14 @@
 """Prepare LoRA training data: select Pikachu images, rotate, composite, write captions.
 
-This is a fully NON-semantic concept LoRA: every caption is EMPTY and the LoRA
-is meant to be trained UNet-only, so the text encoder learns no language and
-there is no trigger word at all. The LoRA becomes an always-on appearance shift
-— Pikachu's look lives in the UNet weights; at inference an empty prompt applies
-it and structure comes from ControlNet (the host outline).
+This is a fully NON-semantic concept LoRA: NO caption files are written and the
+LoRA is meant to be trained UNet-only, so the text encoder learns no language
+and there is no trigger word at all. The LoRA becomes an always-on appearance
+shift — Pikachu's look lives in the UNet weights; at inference an empty prompt
+applies it and structure comes from ControlNet (the host outline).
 
 Outputs (under data/lora_training/):
   image/*.png        # originals + flipped/rotated, composited onto white
-  image/*.txt        # one caption per image (empty — no semantics)
-  meta_cap.json      # consolidated caption metadata
+  meta_cap.json      # image manifest (caption recorded as "")
 """
 
 from __future__ import annotations
@@ -35,10 +34,11 @@ SOURCE_IMAGES = [
 ROTATION_ANGLES = [0, -5, 5, -10, 10, -15, 15]
 FLIPS = [False, True]
 
-# Empty caption — fully non-semantic. The LoRA trains as an always-on
-# appearance shift (no trigger word at all); at inference an empty prompt
-# applies it. This matches the goal: turn *every* Pokemon into Pikachu.
-CAPTION = ""
+# Fully non-semantic: NO caption files are written at all. The LoRA trains as
+# an always-on appearance shift; at inference an empty prompt applies it. This
+# matches the goal: turn *every* Pokemon into Pikachu. (kohya rejects empty
+# caption files, so "no file" is how we get a truly empty caption — see
+# dataset_config.toml, which must not set class_tokens.)
 
 
 def crop_to_content(rgba: Image.Image) -> Image.Image:
@@ -78,16 +78,17 @@ def augment_one(
     return fit_on_white(rotated, resolution, margin)
 
 
-def save_pair(
+def save_image(
     rgb: Image.Image,
     out_dir: Path,
     stem: str,
-    caption: str,
     meta: dict,
 ) -> None:
+    # No caption file: kohya rejects EMPTY caption files (asserts non-empty), so
+    # for a non-semantic LoRA we write none at all. With no caption file and no
+    # class_tokens in dataset_config.toml, kohya uses an empty caption "".
     rgb.save(out_dir / f"{stem}.png", "PNG")
-    (out_dir / f"{stem}.txt").write_text(caption, encoding="utf-8")
-    meta[stem] = {"caption": caption}
+    meta[stem] = {"caption": ""}
 
 
 def prepare(
@@ -117,7 +118,7 @@ def prepare(
                 tag = "f" if flip else "o"
                 sign = "p" if angle >= 0 else "m"
                 stem = f"{base}_{tag}_r{sign}{abs(angle):02d}"
-                save_pair(aug, image_dir, stem, CAPTION, meta)
+                save_image(aug, image_dir, stem, meta)
                 n_saved += 1
 
     meta_path = output_dir / "meta_cap.json"
@@ -145,7 +146,7 @@ def main():
     summary = prepare(source_dir, output_dir)
 
     print()
-    print(f"Saved:  {summary['n_saved']} images + captions")
+    print(f"Saved:  {summary['n_saved']} images (no caption files — empty caption)")
     print(f"Images: {summary['image_dir']}")
     print(f"Meta:   {summary['meta_path']}")
 
