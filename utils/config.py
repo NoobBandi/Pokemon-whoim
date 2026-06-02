@@ -40,18 +40,22 @@ class Config:
     # Generation parameters
     num_inference_steps: int = 25
     guidance_scale: float = 7.5
-    controlnet_conditioning_scale: float = 0.8
+    controlnet_conditioning_scale: float = 0.8  # high = host structure priority
     ip_adapter_scale: float = 0.7
+
+    # ---- LoRA (replaces IP-Adapter; appearance lives in UNet weights) ----
+    lora_enabled: bool = True
+    lora_scale: float = 0.9
+    lora_weight_path: Path = field(init=False)
 
     # Canny edge detection
     canny_low_threshold: int = 100
     canny_high_threshold: int = 200
 
     # Prompts
-    prompt: str = (
-        "a Pikachu, yellow creature with red cheeks, "
-        "black ear tips, cartoon style, white background"
-    )
+    # The LoRA carries Pikachu's look; this fixed prompt is a technical CFG
+    # trigger (an empty prompt makes guidance a no-op and washes the result out).
+    prompt: str = "pikachu, yellow body, red cheeks, black ear tips, cartoon, white background"
     negative_prompt: str = (
         "lowres, bad anatomy, blurry, "
         "worst quality, low quality, deformed"
@@ -62,8 +66,9 @@ class Config:
     seed: int | None = None
 
     def __post_init__(self):
-        self.image_dir = self.project_root / "dataset" / "HybridShivam-Pokemon" / "assets" / "images"
+        self.image_dir = self.project_root / "dataset" / "images"
         self.style_image = self.image_dir / "025.png"
         self.output_dir = self.project_root / "output" / "stylized"
         self.checkpoint_dir = self.project_root / "output" / "checkpoints"
         self.sd_output_dir = self.project_root / "output" / "sd_stylized"
+        self.lora_weight_path = self.project_root / "output" / "lora" / "pikachu_lora_v1.safetensors"

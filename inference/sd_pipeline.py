@@ -26,7 +26,8 @@ def make_comparison_grid(
 ) -> Image.Image:
     """Create a 2x2 comparison grid: original | canny | pikachu ref | result."""
     size = 512
-    images = [original, canny, pikachu_ref, result]
+    placeholder = Image.new("RGB", (size, size), (80, 80, 80))  # LoRA mode has no ref
+    images = [original, canny, pikachu_ref or placeholder, result]
     labels = ["Original", "Canny Edges", "Pikachu Ref", "Result"]
     resized = [img.resize((size, size), Image.LANCZOS) for img in images]
 
@@ -86,13 +87,18 @@ def load_sd_pipeline(config: Config):
         requires_safety_checker=False,
     )
 
-    logger.info("Loading IP-Adapter: %s", config.ip_adapter_weight)
-    pipeline.load_ip_adapter(
-        config.ip_adapter_repo,
-        subfolder="models",
-        weight_name=config.ip_adapter_weight,
-    )
-    pipeline.set_ip_adapter_scale(config.ip_adapter_scale)
+    if config.lora_enabled:
+        # LoRA replaces IP-Adapter: Pikachu appearance lives in the UNet weights.
+        logger.info("Loading LoRA: %s (scale %.2f)", config.lora_weight_path, config.lora_scale)
+        pipeline.load_lora_weights(str(config.lora_weight_path))
+    else:
+        logger.info("Loading IP-Adapter: %s", config.ip_adapter_weight)
+        pipeline.load_ip_adapter(
+            config.ip_adapter_repo,
+            subfolder="models",
+            weight_name=config.ip_adapter_weight,
+        )
+        pipeline.set_ip_adapter_scale(config.ip_adapter_scale)
 
     pipeline.scheduler = UniPCMultistepScheduler.from_config(
         pipeline.scheduler.config,
@@ -108,8 +114,14 @@ def load_sd_pipeline(config: Config):
     return pipeline
 
 
-def load_pikachu_reference(config: Config) -> Image.Image:
-    """Load and prepare the Pikachu reference image for IP-Adapter."""
+def load_pikachu_reference(config: Config) -> Image.Image | None:
+    """Load the Pikachu reference image for IP-Adapter.
+
+    Returns None in LoRA mode (the appearance is in the weights, no reference
+    image is needed — and the dataset may not be present on the training box).
+    """
+    if config.lora_enabled:
+        return None
     img = Image.open(config.style_image).convert("RGBA")
     rgb = rgba_to_rgb_white_bg(img)
     return rgb.resize((config.image_size, config.image_size), Image.LANCZOS)
@@ -148,16 +160,22 @@ def generate_single(
     if config.seed is not None:
         generator = torch.Generator(device="cpu").manual_seed(config.seed)
 
-    result = pipeline(
+    kwargs = dict(
         prompt=config.prompt,
         negative_prompt=config.negative_prompt,
         num_inference_steps=config.num_inference_steps,
         guidance_scale=config.guidance_scale,
         image=canny_image,
-        ip_adapter_image=pikachu_ref,
         controlnet_conditioning_scale=config.controlnet_conditioning_scale,
         generator=generator,
-    ).images[0]
+    )
+    if config.lora_enabled:
+        # Pikachu appearance comes from the LoRA weights, not a reference image.
+        kwargs["cross_attention_kwargs"] = {"scale": config.lora_scale}
+    else:
+        kwargs["ip_adapter_image"] = pikachu_ref
+
+    result = pipeline(**kwargs).images[0]
 
     if original_size:
         result = result.resize(original_size, Image.LANCZOS)

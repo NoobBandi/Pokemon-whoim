@@ -43,6 +43,10 @@ def main():
                         help="CFG guidance scale")
     parser.add_argument("--seed", type=int, default=None,
                         help="Random seed for reproducibility")
+    parser.add_argument("--lora-scale", type=float, default=None,
+                        help="LoRA influence (default from config, ~0.9)")
+    parser.add_argument("--no-lora", action="store_true",
+                        help="Disable LoRA and fall back to IP-Adapter")
     args = parser.parse_args()
 
     config = Config()
@@ -122,6 +126,10 @@ def main():
         config.num_inference_steps = args.steps
         config.guidance_scale = args.guidance
         config.seed = args.seed
+        if args.no_lora:
+            config.lora_enabled = False
+        if args.lora_scale is not None:
+            config.lora_scale = args.lora_scale
 
         from inference.sd_pipeline import batch_sd_transfer
         batch_sd_transfer(config)
@@ -135,6 +143,10 @@ def main():
         config.num_inference_steps = args.steps
         config.guidance_scale = args.guidance
         config.seed = args.seed
+        if args.no_lora:
+            config.lora_enabled = False
+        if args.lora_scale is not None:
+            config.lora_scale = args.lora_scale
 
         from PIL import Image as PILImage
         from inference.sd_pipeline import (
