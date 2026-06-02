@@ -81,6 +81,54 @@ def _label(img: Image.Image, text: str) -> None:
     draw.text((4, 3), text, fill=(255, 255, 255))
 
 
+def _generate(pipe, canny, lora_scale, cnet_scale, args):
+    """One non-semantic generation: empty prompt + ControlNet + LoRA."""
+    generator = torch.Generator(device="cpu").manual_seed(args.seed)
+    return pipe(
+        prompt="",
+        image=canny,
+        num_inference_steps=args.steps,
+        guidance_scale=args.guidance,
+        controlnet_conditioning_scale=cnet_scale,
+        cross_attention_kwargs={"scale": lora_scale},
+        generator=generator,
+    ).images[0]
+
+
+def run_sweep(pipe, config, args, root):
+    """Sweep lora_scale (rows) x controlnet_scale (cols) for one checkpoint/input."""
+    image_dir = Path(args.image_dir)
+    ckpt = Path(args.checkpoint) if args.checkpoint else (
+        root / "output" / "lora" / "pikachu_lora_v1.safetensors"
+    )
+    _rgb, canny = canny_of(image_dir / args.sweep_input, config)
+
+    lora_scales = args.lora_scales
+    cnet_scales = args.controlnet_scales
+    print(f"Sweep on {ckpt.name}, input {args.sweep_input}")
+    print(f"  lora_scales (rows): {lora_scales}")
+    print(f"  controlnet_scales (cols): {cnet_scales}")
+
+    pipe.load_lora_weights(str(ckpt))
+    cell = config.image_size
+    grid = Image.new("RGB", (cell * len(cnet_scales), cell * len(lora_scales)), (30, 30, 30))
+    for i, ls in enumerate(lora_scales):
+        for j, cs in enumerate(cnet_scales):
+            out = _generate(pipe, canny, ls, cs, args).resize((cell, cell))
+            _label(out, f"L{ls}/C{cs}")
+            grid.paste(out, (j * cell, i * cell))
+        print(f"  lora_scale={ls} done")
+    pipe.unload_lora_weights()
+
+    out_path = Path(args.output).with_name("sweep.png")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    grid.save(out_path, "PNG")
+    print(f"\nSaved sweep grid: {out_path}")
+    print("Rows = lora_scale (down = stronger Pikachu); Cols = controlnet_scale")
+    print("(right = stronger host structure). Pick the cell that keeps the outline")
+    print("AND shows yellow + red cheeks + black ear tips.")
+
+
 def main() -> None:
     root = Path(__file__).resolve().parent.parent
     parser = argparse.ArgumentParser(description="Evaluate Pikachu LoRA checkpoints via ControlNet.")
@@ -94,11 +142,25 @@ def main() -> None:
     parser.add_argument("--guidance", type=float, default=7.5)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", default=str(root / "output" / "lora_eval" / "grid.png"))
+    # Sweep mode: find the lora/controlnet balance on one checkpoint + one input.
+    parser.add_argument("--sweep", action="store_true",
+                        help="Sweep lora_scale x controlnet_scale instead of comparing checkpoints")
+    parser.add_argument("--checkpoint", help="Single checkpoint for sweep (default: final)")
+    parser.add_argument("--sweep-input", default="004.png", help="Single input for sweep")
+    parser.add_argument("--lora-scales", nargs="*", type=float,
+                        default=[0.8, 1.0, 1.2, 1.4], help="Sweep rows")
+    parser.add_argument("--controlnet-scales", nargs="*", type=float,
+                        default=[0.4, 0.55, 0.7, 0.85], help="Sweep cols")
     args = parser.parse_args()
 
     config = Config()
     device = get_device()
     dtype = torch.float16 if device.type == "cuda" else torch.float32
+
+    if args.sweep:
+        pipe = build_pipeline(config, device, dtype)
+        run_sweep(pipe, config, args, root)
+        return
 
     image_dir = Path(args.image_dir)
     inputs = args.inputs or sorted(f.name for f in image_dir.glob("*.png"))
