@@ -1,14 +1,14 @@
 """Prepare LoRA training data: select Pikachu images, rotate, composite, write captions.
 
-This is a NON-semantic concept LoRA: every caption is a single trigger token
-(no descriptive sentences), and the LoRA is meant to be trained UNet-only so the
-text encoder learns no language. The token is just an activation switch, not a
-phrase the model has to "understand". Appearance lives in the UNet weights;
-at inference, structure comes from ControlNet (the host outline).
+This is a fully NON-semantic concept LoRA: every caption is EMPTY and the LoRA
+is meant to be trained UNet-only, so the text encoder learns no language and
+there is no trigger word at all. The LoRA becomes an always-on appearance shift
+— Pikachu's look lives in the UNet weights; at inference an empty prompt applies
+it and structure comes from ControlNet (the host outline).
 
 Outputs (under data/lora_training/):
   image/*.png        # originals + flipped/rotated, composited onto white
-  image/*.txt        # one caption per image (just the trigger token)
+  image/*.txt        # one caption per image (empty — no semantics)
   meta_cap.json      # consolidated caption metadata
 """
 
@@ -35,9 +35,10 @@ SOURCE_IMAGES = [
 ROTATION_ANGLES = [0, -5, 5, -10, 10, -15, 15]
 FLIPS = [False, True]
 
-# Single trigger token only — no descriptive captions, no semantics.
-TRIGGER = "pkmn-pikachu"
-CAPTION = TRIGGER
+# Empty caption — fully non-semantic. The LoRA trains as an always-on
+# appearance shift (no trigger word at all); at inference an empty prompt
+# applies it. This matches the goal: turn *every* Pokemon into Pikachu.
+CAPTION = ""
 
 
 def crop_to_content(rgba: Image.Image) -> Image.Image:

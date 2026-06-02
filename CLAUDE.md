@@ -110,19 +110,21 @@ data/lora_training/
   dataset_config.toml # sd-scripts 訓練配置
 ```
 
-### Caption 策略（非語意）
+### Caption 策略（完全非語意）
 
-**這是純視覺概念 LoRA，不依賴文字語意**。所以：
+**這是純視覺概念 LoRA，完全不依賴文字語意**。所以：
 
-- 每張圖的 caption **只有單一 trigger token** `pkmn-pikachu`，不寫任何描述句
-- trigger token 只是「啟動開關」，不是要模型讀懂的句子
+- 每張圖的 caption **是空字串**（0 bytes），連 trigger token 都沒有
 - **只訓 UNet、不訓 text encoder**（`--network_train_unet_only`）→ 完全不教語言
-- 皮卡丘外觀存在 UNet 權重；推理時結構由 ControlNet（宿主輪廓）決定，prompt 可空
+- LoRA 成為**永遠啟動的外觀位移**：皮卡丘長相存在 UNet 權重，無條件套用
+- 推理時 **prompt 留空 `""`**，結構由 ControlNet（宿主輪廓）決定
+- 這正符合目標：把*每一隻*寶可夢都變皮卡丘，無需任何觸發詞
 
 ```
-# 每張圖的 .txt 內容就是這一行，沒有別的
-pkmn-pikachu
+# 每張圖的 .txt 內容是空的（沒有任何文字）
 ```
+
+> dataset_config.toml **不要設 `class_tokens`**（設了會被當成 caption 注入），保持真正空 caption。
 
 ### LoRA 超參數
 
@@ -191,12 +193,11 @@ accelerate launch --num_cpu_threads_per_process 4 \
 lora_enabled: bool = True
 lora_weight_path: str = "output/lora/pikachu_lora_v1.safetensors"
 lora_scale: float = 0.8
-lora_trigger_token: str = "pkmn-pikachu"
 ```
 
-Prompt 為**單一 trigger token、不寫描述句**（非語意路線）：
+Prompt **留空**（完全非語意、LoRA 永遠啟動）：
 ```python
-prompt: str = "pkmn-pikachu"
+prompt: str = ""
 ```
 
 CLI 新增：`--lora-scale`, `--no-lora`（切換回 IP-Adapter）
