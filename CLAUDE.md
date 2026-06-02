@@ -17,9 +17,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Setup
 
 ```bash
-# CUDA (NVIDIA GPU)
-pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cu118
+# CUDA — RTX 5060 Ti (Blackwell, sm_120) 必須用 cu128，cu118 的輪子不支援 Blackwell
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 pip install -r requirements.txt
+
+# 較舊的 NVIDIA 卡（Ada/Ampere，如 4060/3090）可用 cu118
+# pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cu118
 
 # Apple Silicon (MPS)
 pip install -r requirements.txt
@@ -27,8 +30,8 @@ pip install -r requirements.txt
 
 - Python: >=3.11
 - 本機: Poetry (`poetry install`)
-- Server: pip + requirements.txt (CUDA 11.8)
-- Server: NVIDIA A100 80GB
+- 訓練機: pip + requirements.txt (CUDA 12.8)
+- 訓練機: NVIDIA RTX 5060 Ti 16GB (Blackwell)
 
 ## CLI Usage
 
@@ -68,13 +71,15 @@ Key parameters: `--ip-scale` (0.7), `--controlnet-scale` (0.8), `--steps` (25), 
 - 產出標準 safetensors LoRA 檔，`diffusers.load_lora_weights()` 可直接載入
 - 支援 resolution bucketing、mixed precision、gradient checkpointing
 - 社群驗證最成熟的 SD LoRA 訓練工具
-- 在 A100 server 上用獨立 venv 訓練，不影響推理環境
+- 在 5060 Ti 訓練機上用獨立 venv 訓練，不影響推理環境
 
 安裝：
 ```bash
 git clone https://github.com/kohya_ss/sd-scripts
 cd sd-scripts
 pip install -r requirements.txt
+# Blackwell (5060 Ti)：requirements 可能裝到不支援的 torch，裝完覆蓋成 cu128
+pip install --force-reinstall torch torchvision --index-url https://download.pytorch.org/whl/cu128
 pip install bitsandbytes  # AdamW8bit optimizer
 ```
 
@@ -134,16 +139,16 @@ data/lora_training/
 | Learning Rate (Text Encoder) | 5e-5 | Text encoder 需要更溫和的更新 |
 | LR Scheduler | Cosine + 10% warmup | 平滑衰減，~200 步 warmup |
 | Optimizer | AdamW8bit | 省 VRAM，品質不減 |
-| Batch Size | 4 | A100 可承受 |
-| Max Train Steps | 2000-3000 | ~45 張 × ~15 epochs / batch 4 ≈ 2500 步 |
-| Mixed Precision | bf16 | A100 原生支援，比 fp16 穩定 |
+| Batch Size | 4 | 16G 可承受（512 + dim32 + cache latents，約佔 8–10GB；OOM 就降到 2） |
+| Max Train Steps | 2000-3000 | ~42 張 × ~12 repeats × ~20 epochs / batch 4 ≈ 2500 步 |
+| Mixed Precision | bf16 | Blackwell 原生支援，比 fp16 穩定 |
 | Resolution | 512 | SD 1.5 原生解析度 |
 | LoRA Targets | Attention only (Q, K, V, Out) | 角色概念只需修改 attention |
 | Gradient Checkpointing | True | 省 VRAM |
-| xformers | True | 記憶體效率 attention |
+| 記憶體效率 attention | `--sdpa` | Blackwell 上 xformers 常無 cu128 輪子/編譯失敗，改用 PyTorch 內建 sdpa |
 | Save Every N Steps | 500 | 每隔 500 步存 checkpoint，選最好的 |
 
-**預估訓練時間（A100）**：~15 分鐘（含 latent caching + 2500 步訓練）
+**預估訓練時間（RTX 5060 Ti 16G）**：~30–50 分鐘（含 latent caching + 2500 步訓練）
 
 ### 訓練指令範本
 
@@ -168,7 +173,7 @@ accelerate launch --num_cpu_threads_per_process 4 \
   --optimizer_type=AdamW8bit \
   --mixed_precision=bf16 \
   --gradient_checkpointing \
-  --xformers \
+  --sdpa \
   --save_every_n_steps=500 \
   --sample_every_n_steps=500 \
   --resolution=512,512 \
