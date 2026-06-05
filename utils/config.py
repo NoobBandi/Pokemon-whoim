@@ -40,12 +40,12 @@ class Config:
     # Generation parameters
     num_inference_steps: int = 25
     guidance_scale: float = 7.5
-    controlnet_conditioning_scale: float = 0.85  # high = host structure priority
+    controlnet_conditioning_scale: float = 0.72  # balance: host identity + clean Pikachu face
     ip_adapter_scale: float = 0.7
 
     # ---- LoRA (replaces IP-Adapter; appearance lives in UNet weights) ----
     lora_enabled: bool = True
-    lora_scale: float = 0.8
+    lora_scale: float = 0.64
     lora_weight_path: Path = field(init=False)
 
     # Canny edge detection (outline_utils.controlnet_canny defaults — captures
