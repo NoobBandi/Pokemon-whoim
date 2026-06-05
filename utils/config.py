@@ -40,12 +40,12 @@ class Config:
     # Generation parameters
     num_inference_steps: int = 25
     guidance_scale: float = 7.5
-    controlnet_conditioning_scale: float = 0.8  # high = host structure priority
+    controlnet_conditioning_scale: float = 0.85  # high = host structure priority
     ip_adapter_scale: float = 0.7
 
     # ---- LoRA (replaces IP-Adapter; appearance lives in UNet weights) ----
     lora_enabled: bool = True
-    lora_scale: float = 0.9
+    lora_scale: float = 0.8
     lora_weight_path: Path = field(init=False)
 
     # Canny edge detection (outline_utils.controlnet_canny defaults — captures
@@ -56,10 +56,12 @@ class Config:
     # Prompts
     # The LoRA carries Pikachu's look; this fixed prompt is a technical CFG
     # trigger (an empty prompt makes guidance a no-op and washes the result out).
-    prompt: str = "pikachu, yellow body, red cheeks, black ear tips, cartoon, white background"
+    prompt: str = "pikachu, yellow body, red cheeks, cute face"
+    # Suppresses the glass-orb and dark-head artifacts from the structure/LoRA
+    # conflict at the head region.
     negative_prompt: str = (
-        "lowres, bad anatomy, blurry, "
-        "worst quality, low quality, deformed"
+        "dark head, black head, glass sphere, bubble, reflective orb, glossy, "
+        "transparent dome, helmet, lowres, deformed"
     )
 
     # Other
