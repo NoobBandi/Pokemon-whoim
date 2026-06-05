@@ -86,6 +86,7 @@ def _generate(pipe, canny, lora_scale, cnet_scale, args):
     generator = torch.Generator(device="cpu").manual_seed(args.seed)
     return pipe(
         prompt=args.prompt,
+        negative_prompt=args.negative or None,
         image=canny,
         num_inference_steps=args.steps,
         guidance_scale=args.guidance,
@@ -142,6 +143,8 @@ def main() -> None:
     parser.add_argument("--guidance", type=float, default=7.5)
     parser.add_argument("--prompt", default="",
                         help="Empty = pure non-semantic (CFG no-op). A short prompt re-enables CFG.")
+    parser.add_argument("--negative", default="",
+                        help="Negative prompt, e.g. to suppress artifacts (glass orb/bubble)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--canny-low", type=int, help="Canny low threshold (higher = fewer internal lines)")
     parser.add_argument("--canny-high", type=int, help="Canny high threshold")
