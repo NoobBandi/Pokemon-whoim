@@ -136,15 +136,15 @@ def main() -> None:
     parser.add_argument("--image-dir", default=str(root / "inference" / "eval_inputs"))
     parser.add_argument("--inputs", nargs="*", help="Filenames in image-dir (default: all PNGs)")
     parser.add_argument("--checkpoints", nargs="*", help="LoRA .safetensors (default: all in output/lora)")
-    parser.add_argument("--lora-scale", type=float, default=0.8)
-    parser.add_argument("--controlnet-scale", type=float, default=0.9,
-                        help="High = host structure priority")
+    parser.add_argument("--lora-scale", type=float, default=None, help="Default: config.lora_scale")
+    parser.add_argument("--controlnet-scale", type=float, default=None,
+                        help="High = host structure priority. Default: config value")
     parser.add_argument("--steps", type=int, default=25)
     parser.add_argument("--guidance", type=float, default=7.5)
-    parser.add_argument("--prompt", default="",
-                        help="Empty = pure non-semantic (CFG no-op). A short prompt re-enables CFG.")
-    parser.add_argument("--negative", default="",
-                        help="Negative prompt, e.g. to suppress artifacts (glass orb/bubble)")
+    parser.add_argument("--prompt", default=None,
+                        help="Default: config.prompt. Empty string = pure non-semantic (CFG no-op).")
+    parser.add_argument("--negative", default=None,
+                        help="Default: config.negative_prompt. Suppresses artifacts (glass orb/dark head).")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--canny-low", type=int, help="Canny low threshold (higher = fewer internal lines)")
     parser.add_argument("--canny-high", type=int, help="Canny high threshold")
@@ -165,6 +165,15 @@ def main() -> None:
         config.canny_low_threshold = args.canny_low
     if args.canny_high is not None:
         config.canny_high_threshold = args.canny_high
+    # Fall back to the locked production config for any unset knob.
+    if args.prompt is None:
+        args.prompt = config.prompt
+    if args.negative is None:
+        args.negative = config.negative_prompt
+    if args.lora_scale is None:
+        args.lora_scale = config.lora_scale
+    if args.controlnet_scale is None:
+        args.controlnet_scale = config.controlnet_conditioning_scale
     device = get_device()
     dtype = torch.float16 if device.type == "cuda" else torch.float32
 
